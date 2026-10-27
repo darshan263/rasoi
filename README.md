@@ -23,7 +23,7 @@ A private recipe book that works on phone, tablet and computer, and installs lik
 
 ## Stack
 
-Next.js 15 (App Router) · React 19 · Tailwind 4 · Prisma 6 · Postgres (Supabase) · Vercel.
+Next.js 15 (App Router) · React 19 · Tailwind 4 · Prisma 6 · Postgres (Neon or Supabase) · Vercel.
 One login; JWT session (jose) in a cookie, or a Bearer token for a native shell.
 
 ### Built to be wrapped later (Tauri / Capacitor)
@@ -62,7 +62,17 @@ A library created before Veg / Non-veg existed needs one run after `prisma db pu
 `npm test`: search ranking, step parsing, image sniffing, link-loop detection, payload
 validation, redirect safety, and a sanity check of the seeded library.
 
-## Deploy (Vercel + Supabase)
+## Deploy
+
+Live at the Vercel project `rasoi`, which deploys every push to `main`. The database is a free
+Neon Postgres (`rasoi-db`, Singapore) added from the Vercel Marketplace, so Vercel sets
+`DATABASE_URL` (pooled) itself; `DIRECT_URL` is set by hand to the value of
+`DATABASE_URL_UNPOOLED`. The functions run in Singapore too (`vercel.json`), next to the database.
+
+Schema changes: `vercel env pull .env.neon --environment production`, then run
+`npx prisma db push` with `DATABASE_URL` and `DIRECT_URL` taken from that file.
+
+### On Supabase instead
 
 1. Create a Supabase project (Mumbai). Copy the **Transaction pooler** URL (port 6543, add
    `?pgbouncer=true&connection_limit=1&sslmode=require`) as `DATABASE_URL` and the **Session
@@ -70,7 +80,7 @@ validation, redirect safety, and a sanity check of the seeded library.
 2. Put them and a fresh `AUTH_SECRET` in `.env`, then `npm run check:env` and
    `npx prisma db push`.
 3. Run `prisma/supabase-lockdown.sql` in the Supabase SQL editor.
-4. Import the GitHub repo into Vercel. Set `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET` and
+4. Import the GitHub repo into Vercel and set `"regions": ["bom1"]` in `vercel.json`. Set `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET` and
    `TRUST_PROXY_HEADER=true` in its Environment Variables. Deploy.
 5. Open the site and create the login.
 

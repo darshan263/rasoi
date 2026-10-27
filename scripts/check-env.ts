@@ -53,6 +53,20 @@ function checkUrl(name: string, raw: string | undefined, expect: "pooled" | "dir
     raw.match(/db\.([a-z0-9]+)\.supabase\.co/)?.[1] ??
     url.username.match(/^postgres\.([a-z0-9]+)$/)?.[1];
 
+  // Neon marks the pooled endpoint in the host name (ep-…-pooler…) and its PgBouncer handles
+  // prepared statements, so none of the Supabase port / pgbouncer=true rules apply.
+  if (/\.neon\.tech$/.test(url.hostname)) {
+    const pooled = url.hostname.includes("-pooler.");
+    if (expect === "pooled" && !pooled) {
+      say("fail", `${name} is Neon's direct host. Use the pooled one (its host has "-pooler" in it).`);
+    }
+    if (expect === "direct" && pooled) {
+      say("fail", `${name} is Neon's pooled host. Use the direct one (DATABASE_URL_UNPOOLED).`);
+    }
+    say("ok", `${name}: ${url.username}@${url.hostname}${url.search}`);
+    return url.hostname.replace("-pooler.", ".");
+  }
+
   if (expect === "pooled") {
     if (url.port !== "6543") {
       say("warn", `${name} is on port ${url.port || "(default)"}; Supabase's transaction pooler is 6543.`);
@@ -124,7 +138,7 @@ async function probe(name: string, url: string | undefined) {
   const directRef = checkUrl("DIRECT_URL", DIRECT_URL, "direct");
 
   if (poolRef && directRef && poolRef !== directRef) {
-    say("fail", "The two URLs point at different Supabase projects.");
+    say("fail", "The two URLs point at different databases.");
   }
 
   if (!AUTH_SECRET || AUTH_SECRET.length < MIN_SECRET_LENGTH) {
