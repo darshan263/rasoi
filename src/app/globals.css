@@ -1,0 +1,405 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens — "home kitchen": a cream page, tomato red as the accent, basil
+   green as the second colour, Fraunces for headings, DM Sans for everything else.
+   Light is the base; the dark block only re-points the tokens.
+--------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+
+  --bg: #fbf7f0;
+  --bg-elevated: #fffdf9;
+  --bg-sunken: #f4ede1;
+  --bg-hover: #f2eadc;
+  --bg-sidebar: #f6efe3;
+
+  --text: #2a2420;
+  --text-muted: #6b5f55;
+  --text-faint: #978a7e;
+
+  --border: #ebe0cf;
+  --border-strong: #d9c8b0;
+
+  --accent: #b8401f;
+  --accent-hover: #9c3418;
+  --accent-soft: #fbe6dc;
+  --accent-text: #ffffff;
+
+  /* Basil: base-recipe badges, active markers, small highlights. */
+  --warm: #3f7a3a;
+  --warm-soft: #e3efdc;
+
+  --credit: #3f7a3a;
+  --credit-soft: #e3efdc;
+  --debit: #b42318;
+  --debit-soft: #fdecea;
+  --neutral-soft: #f0e8da;
+
+  --shadow-sm: 0 1px 2px rgb(74 42 24 / 0.05), 0 2px 6px rgb(74 42 24 / 0.04);
+  --shadow-md: 0 6px 16px rgb(74 42 24 / 0.08), 0 2px 4px rgb(74 42 24 / 0.04);
+  --shadow-lg: 0 16px 40px rgb(74 42 24 / 0.14), 0 4px 10px rgb(74 42 24 / 0.06);
+
+  --radius-card: 20px;
+  --radius-field: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --bg: #191512;
+    --bg-elevated: #221d19;
+    --bg-sunken: #1c1814;
+    --bg-hover: #2c251f;
+    --bg-sidebar: #1e1915;
+
+    --text: #f3ece3;
+    --text-muted: #b8ab9c;
+    --text-faint: #82766a;
+
+    --border: #362e27;
+    --border-strong: #4a3f35;
+
+    --accent: #ef7a55;
+    --accent-hover: #f59272;
+    --accent-soft: #3c2017;
+    --accent-text: #1a0f0a;
+
+    --warm: #8cc47f;
+    --warm-soft: #1f3319;
+
+    --credit: #8cc47f;
+    --credit-soft: #1f3319;
+    --debit: #f08a7e;
+    --debit-soft: #3a1a17;
+    --neutral-soft: #2c251f;
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 6px 16px rgb(0 0 0 / 0.45);
+    --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.55);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--bg-elevated);
+  --color-sunken: var(--bg-sunken);
+  --color-hover: var(--bg-hover);
+  --color-ink: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-warm: var(--warm);
+  --color-credit: var(--credit);
+  --color-credit-soft: var(--credit-soft);
+  --color-debit: var(--debit);
+  --color-debit-soft: var(--debit-soft);
+  /* --ff-body and --ff-display are set on <html> by next/font in app/layout.tsx. */
+  --font-sans: var(--ff-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--ff-display), Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Headings in the display face, everywhere, so no page has to remember to ask for it. */
+h1,
+h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variation-settings: "SOFT" 50, "opsz" 48;
+}
+
+/* ---------------------------------------------------------------------------
+   Component primitives.
+
+   Inside @layer components deliberately. Unlayered rules beat layered ones in the
+   cascade whatever the source order, so leaving these outside a layer made them win
+   against every Tailwind utility. Tailwind orders components before utilities, so in
+   here the markup gets the last word.
+--------------------------------------------------------------------------- */
+@layer components {
+  /* Tabular figures everywhere figures are shown, so columns of numbers line up. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* Display-face text outside a heading: recipe names on cards, the brand. */
+  .figure {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variation-settings: "SOFT" 50, "opsz" 72;
+  }
+
+  .card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    border-radius: 999px;
+    padding: 0.55rem 1.05rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease,
+      transform 0.06s ease;
+    white-space: nowrap;
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(0.5px);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-text);
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.15) inset, var(--shadow-sm);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+  .btn-secondary {
+    background: var(--bg-elevated);
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--bg-hover);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+  .btn-danger {
+    background: transparent;
+    color: var(--debit);
+    border-color: var(--border-strong);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: var(--debit-soft);
+    border-color: var(--debit);
+  }
+  .btn-sm {
+    padding: 0.32rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .input,
+  .select,
+  .textarea {
+    width: 100%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-field);
+    padding: 0.55rem 0.8rem;
+    font-size: 0.9375rem;
+    color: var(--text);
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  }
+  .input::placeholder,
+  .textarea::placeholder {
+    color: var(--text-faint);
+  }
+  .input:focus,
+  .select:focus,
+  .textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .select {
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--text-faint) 50%),
+      linear-gradient(135deg, var(--text-faint) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 52%, calc(100% - 13px) 52%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 2rem;
+  }
+  .textarea {
+    resize: vertical;
+    min-height: 4.5rem;
+  }
+  .label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 0.35rem;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--neutral-soft);
+    color: var(--text-muted);
+  }
+
+  .seg {
+    display: inline-flex;
+    background: var(--bg-sunken);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px;
+    gap: 4px;
+  }
+  .seg-item {
+    padding: 0.4rem 0.95rem;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    transition: background-color 0.12s ease, color 0.12s ease;
+    white-space: nowrap;
+  }
+  .seg-item:hover {
+    color: var(--text);
+  }
+  .seg-item[data-active="true"] {
+    background: var(--accent);
+    color: var(--accent-text);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .divide-line > * + * {
+    border-top: 1px solid var(--border);
+  }
+
+  /* -------------------------------------------------------------------------
+     Long lists. `content-visibility: auto` lets the browser skip layout and
+     paint for rows that are off screen. Done in CSS rather than a windowing
+     library so rows stay server-rendered HTML and find-in-page still works.
+     `contain-intrinsic-size` is the height assumed for a row not yet drawn.
+  ------------------------------------------------------------------------- */
+  .list-long > * {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 61px;
+  }
+
+  .link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .link:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+/* Scrollbars that do not fight the dark theme */
+@supports selector(::-webkit-scrollbar) {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 999px;
+    border: 2px solid var(--bg);
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* App-specific pieces. */
+@layer components {
+  /* Photo tiles keep their shape whether or not the image has loaded. */
+  .thumb {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-sunken);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  /* Seeded ingredient photos are cut-outs on transparency: show them whole, not cropped. */
+  .thumb[data-fit="contain"] img {
+    object-fit: contain;
+    padding: 8%;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+}
+
+/* Room for the phone's home indicator under the bottom tab bar. */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

@@ -1,0 +1,120 @@
+// Rasoi — personal recipe book.
+//
+// A Recipe is made of Sections ("Base dough", "Pizza sauce", "Toppings"), each with its own
+// ingredient lines and steps. A section can instead point at another saved recipe, so a base
+// such as "Pizza sauce" is written once and reused by every pizza. Ingredient lines always
+// refer to the Ingredient library, which is what makes them searchable and gives them photos.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Serverless opens a connection per function instance. DATABASE_URL must be the *pooled*
+  // endpoint; DIRECT_URL (session pooler) is used only by `prisma db push`.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/// The one login.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  /// Bumped whenever the password changes; sessions signed with an older value are retired.
+  tokenVersion Int      @default(0)
+  createdAt    DateTime @default(now())
+}
+
+/// Sign-in throttle counters (see lib/rate-limit.ts). In the database because serverless
+/// instances do not share memory.
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+}
+
+/// An uploaded photo. Kept in Postgres rather than a storage bucket: photos are resized in the
+/// browser first (a recipe cover is ~100-200 KB), so this stays small and needs no extra
+/// service. The id is 24 random bytes, which is what keeps the public image URL private.
+model Image {
+  id        String   @id
+  mime      String
+  data      Bytes
+  createdAt DateTime @default(now())
+}
+
+model Ingredient {
+  id          String       @id @default(cuid())
+  name        String
+  /// lower-cased, whitespace-collapsed name: uniqueness and search, on any database.
+  nameKey     String       @unique
+  /// See lib/categories.ts
+  category    String       @default("other")
+  /// "/api/images/<id>" for an upload, or an external URL for the seeded library.
+  imageUrl    String?
+  defaultUnit String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  items       SectionItem[]
+
+  @@index([category])
+}
+
+model Recipe {
+  id          String          @id @default(cuid())
+  name        String
+  nameKey     String
+  description String?
+  /// See lib/categories.ts RECIPE_CATEGORIES; free text is allowed too.
+  category    String?
+  cuisine     String?
+  servings    Int?
+  prepMinutes Int?
+  cookMinutes Int?
+  notes       String?
+  imageUrl    String?
+  /// A base recipe (a sauce, a dough) meant to be used as a section of other recipes.
+  isComponent Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  sections    RecipeSection[] @relation("RecipeSections")
+  usedIn      RecipeSection[] @relation("LinkedRecipe")
+
+  @@index([nameKey])
+}
+
+model RecipeSection {
+  id             String        @id @default(cuid())
+  recipeId       String
+  recipe         Recipe        @relation("RecipeSections", fields: [recipeId], references: [id], onDelete: Cascade)
+  position       Int
+  title          String
+  /// One step per line.
+  instructions   String?
+  /// Use another saved recipe as this section. Restrict: a base recipe in use cannot be deleted.
+  linkedRecipeId String?
+  linkedRecipe   Recipe?       @relation("LinkedRecipe", fields: [linkedRecipeId], references: [id], onDelete: Restrict)
+  items          SectionItem[]
+
+  @@index([recipeId])
+  @@index([linkedRecipeId])
+}
+
+model SectionItem {
+  id           String        @id @default(cuid())
+  sectionId    String
+  section      RecipeSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  position     Int
+  ingredientId String
+  /// Restrict: an ingredient used in a recipe cannot be deleted from the library.
+  ingredient   Ingredient    @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+  /// Free text, so "1/2", "2-3" and "a pinch" all work.
+  quantity     String?
+  unit         String?
+  note         String?
+
+  @@index([sectionId])
+  @@index([ingredientId])
+}
