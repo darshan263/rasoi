@@ -38,10 +38,15 @@ export async function startSession(user: User): Promise<string> {
     email: user.email,
     ver: user.tokenVersion,
   });
+  // HTTPS-only whenever the visit came over HTTPS (always, on Vercel). Keyed on the connection
+  // rather than on NODE_ENV so a production build tried at home over plain http — a phone on
+  // the Wi-Fi opening http://192.168.x.x — can still sign in instead of silently dropping the
+  // cookie. Next sets x-forwarded-proto on every request; Vercel's proxy overwrites it.
+  const proto = (await headers()).get("x-forwarded-proto")?.split(",")[0]?.trim();
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: proto ? proto === "https" : process.env.NODE_ENV === "production",
     path: "/",
     maxAge: SESSION_MAX_AGE,
   });
