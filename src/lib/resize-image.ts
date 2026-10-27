@@ -5,7 +5,7 @@
  * and the longest side needed for a recipe cover is ~1280px. Re-encoding also strips EXIF
  * (including GPS location) from camera photos. WebP where the browser can encode it, else JPEG.
  */
-export async function resizeImage(file: File, maxSide: number): Promise<Blob> {
+export async function resizeImage(file: Blob, maxSide: number): Promise<Blob> {
   const bitmap = await loadBitmap(file);
   const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
   const width = Math.max(1, Math.round(bitmap.width * scale));
@@ -31,7 +31,7 @@ function toBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promi
 }
 
 /** createImageBitmap honours EXIF rotation; the <img> fallback covers older Safari. */
-async function loadBitmap(file: File): Promise<ImageBitmap | HTMLImageElement> {
+async function loadBitmap(file: Blob): Promise<ImageBitmap | HTMLImageElement> {
   if ("createImageBitmap" in window) {
     try {
       return await createImageBitmap(file, { imageOrientation: "from-image" });

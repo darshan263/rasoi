@@ -91,6 +91,26 @@ export async function api<T>(
   return data as T;
 }
 
+/** GET binary data (a photo) from the API, with the same sign-in handling as `api`. */
+export async function apiBlob(path: string): Promise<Blob> {
+  const token = storedToken();
+  let res: Response;
+  try {
+    res = await fetch(API_BASE + path, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: API_BASE ? "omit" : "same-origin",
+      cache: "no-store",
+    });
+  } catch {
+    throw new ApiRequestError(0, "Could not reach the server. Check your connection.");
+  }
+  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new ApiRequestError(res.status, data?.error ?? `Request failed (${res.status})`);
+  }
+  return res.blob();
+}
+
 export function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : "Something went wrong";
 }

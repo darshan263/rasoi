@@ -238,7 +238,13 @@ function Editor({ id }: { id: string | null }) {
       <h1 className="text-[1.9rem] leading-tight">{id ? "Edit recipe" : "New recipe"}</h1>
 
       <section className="card flex flex-col gap-4 p-4 sm:p-5">
-        <ImagePicker value={draft.imageUrl} onChange={(imageUrl) => update({ imageUrl })} variant="cover" fallback="🍽️" />
+        <ImagePicker
+          value={draft.imageUrl}
+          onChange={(imageUrl) => update({ imageUrl })}
+          variant="cover"
+          fallback="🍽️"
+          searchName={draft.name}
+        />
 
         <div>
           <label className="label" htmlFor="name">

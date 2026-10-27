@@ -4,28 +4,33 @@ import { useRef, useState } from "react";
 
 import { api, errorMessage } from "@/lib/api-client";
 import { resizeImage } from "@/lib/resize-image";
-import { IconCamera, IconTrash } from "./Icons";
+import { IconCamera, IconSearch, IconTrash } from "./Icons";
+import { PhotoSearch } from "./PhotoSearch";
 import { Thumb } from "./Thumb";
 
 /**
- * Pick a photo (on a phone this offers the camera or the gallery), shrink it in the browser,
- * upload it, and hand back its URL. Nothing is attached to a recipe or ingredient until that
- * form is saved.
+ * Pick a photo (on a phone this offers the camera or the gallery), or find one online by the
+ * name typed in the form; shrink it in the browser, upload it, and hand back its URL. Nothing
+ * is attached to a recipe or ingredient until that form is saved.
  */
 export function ImagePicker({
   value,
   onChange,
   variant,
   fallback,
+  searchName,
 }: {
   value: string | null;
   onChange: (url: string | null) => void;
   variant: "cover" | "square";
   fallback: string;
+  /** What "Find online" searches for: the recipe or ingredient name typed so far. */
+  searchName: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
 
   async function pick(file: File | undefined) {
     if (!file) return;
@@ -93,6 +98,10 @@ export function ImagePicker({
           <IconCamera size={15} />
           {value ? "Change photo" : "Choose photo"}
         </button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSearching(true)} disabled={busy}>
+          <IconSearch size={15} />
+          Find online
+        </button>
         {value && (
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange(null)} disabled={busy}>
             <IconTrash size={15} />
@@ -104,6 +113,16 @@ export function ImagePicker({
         <p className="text-sm" style={{ color: "var(--debit)" }} role="alert">
           {error}
         </p>
+      )}
+
+      {searching && (
+        <PhotoSearch
+          initialQuery={searchName.trim()}
+          kind={cover ? "recipe" : "ingredient"}
+          maxSide={cover ? 1280 : 480}
+          onPicked={onChange}
+          onClose={() => setSearching(false)}
+        />
       )}
 
       <input

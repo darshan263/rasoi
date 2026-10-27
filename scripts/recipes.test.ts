@@ -8,6 +8,7 @@ import seed from "../prisma/ingredients.json";
 import { isIngredientCategory } from "../src/lib/categories";
 import { isAcceptableImageUrl, sniffImage, uploadedImageId } from "../src/lib/image-format";
 import { findCycle } from "../src/lib/links";
+import { isAllowedPhotoUrl } from "../src/lib/photo-hosts";
 import { safeNext } from "../src/lib/next-path";
 import { ingredientInput, recipeInput } from "../src/lib/schemas";
 import { matchRank, nameKey, rankByName, splitSteps } from "../src/lib/text";
@@ -110,4 +111,18 @@ test("safeNext keeps sign-in redirects on this site", () => {
   assert.equal(safeNext("//evil.com"), "/");
   assert.equal(safeNext("/\t/evil.com"), "/");
   assert.equal(safeNext("https://evil.com"), "/");
+});
+
+test("Find online only downloads from the known photo hosts", () => {
+  assert.ok(isAllowedPhotoUrl("https://upload.wikimedia.org/wikipedia/commons/a/a3/Pizza.jpg"));
+  assert.ok(isAllowedPhotoUrl("https://www.themealdb.com/images/media/meals/x.jpg"));
+  assert.ok(isAllowedPhotoUrl("https://api.openverse.org/v1/images/abc/thumb/"));
+  assert.ok(!isAllowedPhotoUrl("http://upload.wikimedia.org/a.jpg"), "plain http");
+  assert.ok(!isAllowedPhotoUrl("https://upload.wikimedia.org.evil.com/a.jpg"), "lookalike host");
+  assert.ok(!isAllowedPhotoUrl("https://evil.com@upload.wikimedia.org/a.jpg"), "credentials in URL");
+  assert.ok(!isAllowedPhotoUrl("https://upload.wikimedia.org:8443/a.jpg"), "odd port");
+  assert.ok(!isAllowedPhotoUrl("https://169.254.169.254/latest/meta-data/"), "cloud metadata");
+  assert.ok(!isAllowedPhotoUrl("https://localhost/api/images/x"), "localhost");
+  assert.ok(!isAllowedPhotoUrl("file:///etc/passwd"));
+  assert.ok(!isAllowedPhotoUrl("not a url"));
 });

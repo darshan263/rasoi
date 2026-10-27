@@ -44,7 +44,7 @@ export function IngredientForm({
 
   return (
     <form onSubmit={save} className="flex flex-col gap-4">
-      <ImagePicker value={imageUrl} onChange={setImageUrl} variant="square" fallback={categoryEmoji(category)} />
+      <ImagePicker value={imageUrl} onChange={setImageUrl} variant="square" fallback={categoryEmoji(category)} searchName={name} />
 
       <div>
         <label className="label" htmlFor="ing-name">

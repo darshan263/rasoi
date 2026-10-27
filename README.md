@@ -11,7 +11,9 @@ A private recipe book that works on phone, tablet and computer, and installs lik
   Ingredients are picked by search ("tom" → Tomato). Anything missing can be added on the spot,
   with your own photo.
 - **Photos.** A cover photo per recipe and a photo per ingredient, from the camera or gallery,
-  resized on the phone before upload.
+  resized on the phone before upload, or **Find online**: searches TheMealDB, Wikimedia
+  Commons and Openverse (plus Pexels with `PEXELS_API_KEY`) by the name typed, and saves the
+  picked photo as the app's own copy.
 - **Installable + offline.** Add to Home Screen on Android/iPhone, or install from Chrome/Edge
   on a computer. Recently opened recipes stay readable without internet.
 
