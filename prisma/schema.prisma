@@ -52,6 +52,8 @@ model Ingredient {
   nameKey     String       @unique
   /// See lib/categories.ts
   category    String       @default("other")
+  /// "veg" or "nonveg" (eggs count as non-veg). Recipes work theirs out from this; see lib/diet.ts.
+  diet        String       @default("veg")
   /// "/api/images/<id>" for an upload, or an external URL for the seeded library.
   imageUrl    String?
   defaultUnit String?

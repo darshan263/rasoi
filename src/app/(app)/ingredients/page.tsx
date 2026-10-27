@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { DietFilter } from "@/components/DietFilter";
+import { DietMark } from "@/components/DietMark";
 import { IconPlus, IconSearch, IconTrash } from "@/components/Icons";
 import { IngredientForm } from "@/components/IngredientForm";
 import { Modal } from "@/components/Modal";
@@ -19,6 +21,7 @@ export default function IngredientsPage() {
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
   const [category, setCategory] = useState("");
+  const [diet, setDiet] = useState<"" | "veg" | "nonveg">("");
   const [items, setItems] = useState<IngredientDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -37,6 +40,7 @@ export default function IngredientsPage() {
     setLoading(true);
     const params = new URLSearchParams({ q: debounced, limit: String(PAGE), offset: "0" });
     if (category) params.set("category", category);
+    if (diet) params.set("diet", diet);
     api<{ items: IngredientDto[]; total: number }>(`/api/ingredients?${params}`)
       .then((data) => {
         if (cancelled) return;
@@ -49,13 +53,14 @@ export default function IngredientsPage() {
     return () => {
       cancelled = true;
     };
-  }, [debounced, category, version]);
+  }, [debounced, category, diet, version]);
 
   async function loadMore() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ q: debounced, limit: String(PAGE), offset: String(items.length) });
       if (category) params.set("category", category);
+      if (diet) params.set("diet", diet);
       const data = await api<{ items: IngredientDto[]; total: number }>(`/api/ingredients?${params}`);
       setItems((prev) => [...prev, ...data.items]);
       setTotal(data.total);
@@ -102,18 +107,21 @@ export default function IngredientsPage() {
         </button>
       </div>
 
-      <div className="relative">
-        <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2" style={{ color: "var(--text-faint)" }}>
-          <IconSearch size={17} />
-        </span>
-        <input
-          className="input"
-          style={{ paddingLeft: "2.3rem" }}
-          placeholder="Search ingredients"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          aria-label="Search ingredients"
-        />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2" style={{ color: "var(--text-faint)" }}>
+            <IconSearch size={17} />
+          </span>
+          <input
+            className="input"
+            style={{ paddingLeft: "2.3rem" }}
+            placeholder="Search ingredients"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            aria-label="Search ingredients"
+          />
+        </div>
+        <DietFilter value={diet} onChange={setDiet} />
       </div>
 
       <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
@@ -152,7 +160,12 @@ export default function IngredientsPage() {
               onClick={() => openEdit(i)}
               className="card flex h-full w-full flex-col items-center gap-1.5 p-2.5 text-center transition-shadow hover:shadow-[var(--shadow-md)]"
             >
-              <Thumb src={i.imageUrl} alt="" fallback={categoryEmoji(i.category)} fit="contain" radius={14} className="aspect-square w-full" />
+              <span className="relative w-full">
+                <Thumb src={i.imageUrl} alt="" fallback={categoryEmoji(i.category)} fit="contain" radius={14} className="aspect-square w-full" />
+                <span className="absolute top-1.5 left-1.5">
+                  <DietMark diet={i.diet} size={13} />
+                </span>
+              </span>
               <span className="line-clamp-2 text-sm leading-tight font-medium">{i.name}</span>
             </button>
           </li>

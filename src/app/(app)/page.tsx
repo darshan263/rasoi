@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { DietFilter } from "@/components/DietFilter";
+import { DietMark } from "@/components/DietMark";
 import { IconPlus, IconSearch } from "@/components/Icons";
 import { RecipeMeta } from "@/components/RecipeMeta";
 import { Thumb } from "@/components/Thumb";
 import { useApi } from "@/lib/use-api";
+import type { Diet } from "@/lib/diet";
 import type { RecipeSummaryDto } from "@/lib/types";
 
 type Kind = "dishes" | "bases" | "all";
@@ -16,6 +19,7 @@ export default function RecipesPage() {
   const [debounced, setDebounced] = useState("");
   const [kind, setKind] = useState<Kind>("all");
   const [category, setCategory] = useState("");
+  const [diet, setDiet] = useState<"" | Diet>("");
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(q), 200);
@@ -26,6 +30,7 @@ export default function RecipesPage() {
   if (debounced.trim()) params.set("q", debounced.trim());
   if (kind === "dishes") params.set("components", "exclude");
   if (kind === "bases") params.set("components", "only");
+  if (diet) params.set("diet", diet);
   const { data, error, loading } = useApi<{ recipes: RecipeSummaryDto[] }>(`/api/recipes?${params}`);
 
   const recipes = data?.recipes;
@@ -34,7 +39,7 @@ export default function RecipesPage() {
     [recipes],
   );
   const shown = (recipes ?? []).filter((r) => !category || r.category === category);
-  const searching = debounced.trim() !== "" || kind !== "all";
+  const searching = debounced.trim() !== "" || kind !== "all" || diet !== "";
 
   return (
     <div className="flex flex-col gap-5">
@@ -51,8 +56,8 @@ export default function RecipesPage() {
         </Link>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="relative flex-1 sm:min-w-[16rem]">
           <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2" style={{ color: "var(--text-faint)" }}>
             <IconSearch size={17} />
           </span>
@@ -78,6 +83,7 @@ export default function RecipesPage() {
             </button>
           ))}
         </div>
+        <DietFilter value={diet} onChange={setDiet} />
       </div>
 
       {categories.length > 1 && (
@@ -138,7 +144,8 @@ export default function RecipesPage() {
             >
               <Thumb src={r.imageUrl} alt="" fallback="🍽️" radius={0} className="aspect-[4/3] w-full" />
               <span className="flex flex-1 flex-col gap-1.5 p-3 sm:p-4">
-                <span className="flex flex-wrap gap-1">
+                <span className="flex flex-wrap items-center gap-1">
+                  {r.diet && <DietMark diet={r.diet} label />}
                   {r.isComponent && (
                     <span className="chip" style={{ background: "var(--warm-soft)", color: "var(--warm)" }}>
                       Base recipe

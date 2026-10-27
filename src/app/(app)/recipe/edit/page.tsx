@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 
+import { DietMark } from "@/components/DietMark";
 import { IconArrowDown, IconArrowUp, IconChevronLeft, IconLink, IconPlus, IconTrash, IconX } from "@/components/Icons";
 import { ImagePicker } from "@/components/ImagePicker";
 import { IngredientSearch } from "@/components/IngredientSearch";
@@ -11,6 +12,7 @@ import { RecipePicker } from "@/components/RecipePicker";
 import { Thumb } from "@/components/Thumb";
 import { api, errorMessage } from "@/lib/api-client";
 import { RECIPE_CATEGORIES, UNITS, categoryEmoji } from "@/lib/categories";
+import type { Diet, NonVegReason } from "@/lib/diet";
 import type { IngredientDto, RecipeDetailDto } from "@/lib/types";
 
 interface ItemDraft {
@@ -25,7 +27,7 @@ interface SectionDraft {
   key: string;
   title: string;
   instructions: string;
-  linked: { id: string; name: string; imageUrl: string | null } | null;
+  linked: { id: string; name: string; imageUrl: string | null; diet: Diet | null } | null;
   items: ItemDraft[];
 }
 
@@ -95,7 +97,12 @@ function fromRecipe(r: RecipeDetailDto): Draft {
       title: s.title,
       instructions: text(s.instructions),
       linked: s.linkedRecipeId
-        ? { id: s.linkedRecipeId, name: s.linkedRecipe?.name ?? "Base recipe", imageUrl: s.linkedRecipe?.imageUrl ?? null }
+        ? {
+            id: s.linkedRecipeId,
+            name: s.linkedRecipe?.name ?? "Base recipe",
+            imageUrl: s.linkedRecipe?.imageUrl ?? null,
+            diet: s.linkedRecipe?.diet ?? null,
+          }
         : null,
       items: s.items.map((it) => ({
         key: newKey(),
@@ -106,6 +113,30 @@ function fromRecipe(r: RecipeDetailDto): Draft {
       })),
     })),
   };
+}
+
+/**
+ * Veg / non-veg for the recipe as it stands in the form, so the mark updates while editing.
+ * The server works out the same thing on save (lib/diet.ts); a base recipe counts as one
+ * ingredient here, named after itself.
+ */
+function draftDiet(d: Draft): { diet: Diet | null; reasons: NonVegReason[] } {
+  const reasons: NonVegReason[] = [];
+  let any = false;
+  for (const s of d.sections) {
+    const part = s.title.trim() || s.linked?.name || "a part";
+    for (const it of s.items) {
+      any = true;
+      if (it.ingredient.diet === "nonveg") reasons.push({ ingredient: it.ingredient.name, part });
+    }
+    if (s.linked?.diet) {
+      any = true;
+      if (s.linked.diet === "nonveg") reasons.push({ ingredient: s.linked.name, part: "base recipe" });
+    }
+  }
+  const seen = new Set<string>();
+  const unique = reasons.filter((r) => !seen.has(r.ingredient) && seen.add(r.ingredient));
+  return { diet: unique.length ? "nonveg" : any ? "veg" : null, reasons: unique };
 }
 
 /** "" → null, "12" → 12, anything else is sent as typed so the server can say what is wrong. */
@@ -225,6 +256,7 @@ function Editor({ id }: { id: string | null }) {
     }
   }
 
+  const dietNow = draftDiet(draft);
   const pickerSection = picker && "section" in picker ? draft.sections.find((s) => s.key === picker.section) : undefined;
 
   return (
@@ -236,6 +268,20 @@ function Editor({ id }: { id: string | null }) {
         </Link>
       </div>
       <h1 className="text-[1.9rem] leading-tight">{id ? "Edit recipe" : "New recipe"}</h1>
+      <p className="-mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm" style={{ color: "var(--text-muted)" }} aria-live="polite">
+        {dietNow.diet ? (
+          <>
+            <DietMark diet={dietNow.diet} size={16} label />
+            <span>
+              {dietNow.diet === "veg"
+                ? "— every ingredient is veg."
+                : `— because of ${dietNow.reasons.map((r) => `${r.ingredient} (${r.part})`).join(", ")}.`}
+            </span>
+          </>
+        ) : (
+          "Veg or non-veg is worked out from the ingredients you add."
+        )}
+      </p>
 
       <section className="card flex flex-col gap-4 p-4 sm:p-5">
         <ImagePicker
@@ -425,7 +471,10 @@ function Editor({ id }: { id: string | null }) {
                   <IconLink size={13} />
                   Uses base recipe
                 </span>
-                <span className="block truncate font-medium">{section.linked.name}</span>
+                <span className="flex items-center gap-1.5">
+                  {section.linked.diet && <DietMark diet={section.linked.diet} size={12} />}
+                  <span className="truncate font-medium">{section.linked.name}</span>
+                </span>
               </span>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPicker({ kind: "link", section: section.key })}>
                 Change
@@ -453,7 +502,8 @@ function Editor({ id }: { id: string | null }) {
                       title="Change ingredient"
                     >
                       <Thumb src={it.ingredient.imageUrl} alt="" size={42} fallback={categoryEmoji(it.ingredient.category)} fit="contain" />
-                      <span className="truncate font-medium">{it.ingredient.name}</span>
+                      <DietMark diet={it.ingredient.diet} size={12} />
+                      <span className="-ml-1.5 truncate font-medium">{it.ingredient.name}</span>
                     </button>
                     <button
                       type="button"
@@ -609,7 +659,7 @@ function Editor({ id }: { id: string | null }) {
           excludeId={id}
           onClose={() => setPicker(null)}
           onPick={(recipe) => {
-            const linked = { id: recipe.id, name: recipe.name, imageUrl: recipe.imageUrl };
+            const linked = { id: recipe.id, name: recipe.name, imageUrl: recipe.imageUrl, diet: recipe.diet };
             if (picker.section) {
               updateSection(picker.section, (s) => ({ ...s, linked, title: s.title || recipe.name }));
             } else {

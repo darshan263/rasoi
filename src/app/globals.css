@@ -31,6 +31,10 @@
   --warm: #3f7a3a;
   --warm-soft: #e3efdc;
 
+  /* The veg / non-veg marks (green dot, brown triangle). */
+  --veg: #1f8a3b;
+  --nonveg: #9b3412;
+
   --credit: #3f7a3a;
   --credit-soft: #e3efdc;
   --debit: #b42318;
@@ -69,6 +73,9 @@
 
     --warm: #8cc47f;
     --warm-soft: #1f3319;
+
+    --veg: #4cc46e;
+    --nonveg: #e0703f;
 
     --credit: #8cc47f;
     --credit-soft: #1f3319;

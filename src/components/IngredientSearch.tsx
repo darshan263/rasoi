@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, errorMessage } from "@/lib/api-client";
 import { INGREDIENT_CATEGORIES, categoryEmoji, categoryLabel } from "@/lib/categories";
 import type { IngredientDto } from "@/lib/types";
+import { DietMark } from "./DietMark";
 import { IconPlus, IconSearch } from "./Icons";
 import { IngredientForm } from "./IngredientForm";
 import { Modal } from "./Modal";
@@ -161,7 +162,10 @@ export function IngredientSearch({
                 >
                   <Thumb src={r.imageUrl} alt="" size={44} fallback={categoryEmoji(r.category)} fit="contain" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{r.name}</span>
+                    <span className="flex items-center gap-1.5">
+                      <DietMark diet={r.diet} size={12} />
+                      <span className="truncate font-medium">{r.name}</span>
+                    </span>
                     <span className="block text-xs" style={{ color: "var(--text-faint)" }}>
                       {categoryLabel(r.category)}
                     </span>

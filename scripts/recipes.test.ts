@@ -6,6 +6,7 @@ import { test } from "node:test";
 
 import seed from "../prisma/ingredients.json";
 import { isIngredientCategory } from "../src/lib/categories";
+import { type DietNode, computeDiets, guessDiet } from "../src/lib/diet";
 import { isAcceptableImageUrl, sniffImage, uploadedImageId } from "../src/lib/image-format";
 import { findCycle } from "../src/lib/links";
 import { isAllowedPhotoUrl } from "../src/lib/photo-hosts";
@@ -125,4 +126,71 @@ test("Find online only downloads from the known photo hosts", () => {
   assert.ok(!isAllowedPhotoUrl("https://localhost/api/images/x"), "localhost");
   assert.ok(!isAllowedPhotoUrl("file:///etc/passwd"));
   assert.ok(!isAllowedPhotoUrl("not a url"));
+});
+
+test("ingredient veg / non-veg guesses", () => {
+  assert.equal(guessDiet("Chicken Thighs", "meat"), "nonveg");
+  assert.equal(guessDiet("Prawns", "seafood"), "nonveg");
+  assert.equal(guessDiet("Eggs", "dairy"), "nonveg", "eggs count as non-veg");
+  assert.equal(guessDiet("Egg Noodles", "grains"), "nonveg");
+  assert.equal(guessDiet("Chicken Stock Cube", "sauces"), "nonveg");
+  assert.equal(guessDiet("Gelatine Leafs", "baking"), "nonveg");
+  assert.equal(guessDiet("Worcestershire Sauce", "sauces"), "nonveg");
+  assert.equal(guessDiet("Paneer", "dairy"), "veg");
+  assert.equal(guessDiet("Eggplant", "vegetables"), "veg");
+  assert.equal(guessDiet("Egg Plants", "vegetables"), "veg");
+  assert.equal(guessDiet("Flax Eggs", "other"), "veg");
+  assert.equal(guessDiet("Eggless Mayonnaise", "sauces"), "veg");
+  assert.equal(guessDiet("Vegetarian Sausages", "meat"), "veg");
+  assert.equal(guessDiet("Fish Masala", "spices"), "veg");
+  assert.equal(guessDiet("Vegetable Stock", "sauces"), "veg");
+  // Names say non-veg even when filed elsewhere.
+  assert.equal(guessDiet("Chicken seekh kebab", "vegetables"), "nonveg");
+  assert.equal(guessDiet("Mutton keema", "other"), "nonveg");
+  assert.equal(guessDiet("Surmai", "other"), "nonveg");
+  // ...and the look-alikes that are not.
+  assert.equal(guessDiet("Chickpeas", "pulses"), "veg");
+  assert.equal(guessDiet("Beef Tomatoes", "fruits"), "veg");
+  assert.equal(guessDiet("Lamb's lettuce", "vegetables"), "veg");
+  assert.equal(guessDiet("Soya mince", "other"), "veg");
+  assert.equal(guessDiet("Hamburger Buns", "baking"), "veg");
+  assert.equal(guessDiet("Coddled cream", "dairy"), "veg");
+  assert.equal(guessDiet("Oyster Mushrooms", "vegetables"), "veg");
+});
+
+test("seeded library: veg items are not misfiled as meat", () => {
+  const rows = seed as { name: string; category: string }[];
+  for (const name of ["Bok Choi", "Galangal Paste", "Pistachio", "Rye", "Egg Plants"]) {
+    const row = rows.find((r) => r.name === name);
+    assert.ok(row, name);
+    assert.equal(guessDiet(row.name, row.category), "veg", name);
+  }
+});
+
+test("recipe veg / non-veg follows ingredients and base recipes", () => {
+  const veg = (name: string) => ({ name, diet: "veg" });
+  const non = (name: string) => ({ name, diet: "nonveg" });
+  const nodes = new Map<string, DietNode>([
+    ["sauce", { sections: [{ title: "Sauce", linkedRecipeId: null, items: [veg("Tomato"), veg("Garlic")] }] }],
+    ["stock", { sections: [{ title: "Stock", linkedRecipeId: null, items: [non("Chicken Stock")] }] }],
+    ["gravy", { sections: [{ title: "Base", linkedRecipeId: "stock", items: [veg("Onion")] }] }],
+    ["veg-pizza", { sections: [{ title: "Pizza sauce", linkedRecipeId: "sauce", items: [] }, { title: "Toppings", linkedRecipeId: null, items: [veg("Paneer")] }] }],
+    ["chicken-pizza", { sections: [{ title: "Pizza sauce", linkedRecipeId: "sauce", items: [] }, { title: "Toppings", linkedRecipeId: null, items: [non("Chicken"), veg("Onion"), non("Chicken")] }] }],
+    ["curry", { sections: [{ title: "Gravy", linkedRecipeId: "gravy", items: [] }] }],
+    ["empty", { sections: [{ title: "Notes only", linkedRecipeId: null, items: [] }] }],
+    ["empty-link", { sections: [{ title: "Uses empty", linkedRecipeId: "empty", items: [] }] }],
+    ["loop-a", { sections: [{ title: "B", linkedRecipeId: "loop-b", items: [veg("Rice")] }] }],
+    ["loop-b", { sections: [{ title: "A", linkedRecipeId: "loop-a", items: [] }] }],
+  ]);
+  const d = computeDiets(nodes);
+  assert.equal(d.get("veg-pizza")?.diet, "veg");
+  assert.equal(d.get("chicken-pizza")?.diet, "nonveg");
+  assert.deepEqual(d.get("chicken-pizza")?.reasons, [{ ingredient: "Chicken", part: "Toppings" }], "listed once");
+  // Two levels down: curry → gravy → stock.
+  assert.equal(d.get("curry")?.diet, "nonveg");
+  assert.deepEqual(d.get("curry")?.reasons, [{ ingredient: "Chicken Stock", part: "Gravy" }]);
+  assert.equal(d.get("empty")?.diet, null, "nothing to judge yet");
+  assert.equal(d.get("empty-link")?.diet, null);
+  // Bad data that loops must still finish.
+  assert.equal(d.get("loop-a")?.diet, "veg");
 });

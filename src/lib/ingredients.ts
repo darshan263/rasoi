@@ -4,6 +4,7 @@ import type { Ingredient, Prisma } from "@prisma/client";
 
 import seed from "../../prisma/ingredients.json";
 import { prisma } from "./db";
+import { type Diet, guessDiet, isDiet } from "./diet";
 import { nameKey, rankByName } from "./text";
 import type { IngredientDto } from "./types";
 
@@ -12,6 +13,7 @@ export function toIngredientDto(i: Ingredient): IngredientDto {
     id: i.id,
     name: i.name,
     category: i.category,
+    diet: isDiet(i.diet) ? i.diet : "veg",
     imageUrl: i.imageUrl,
     defaultUnit: i.defaultUnit,
   };
@@ -23,6 +25,7 @@ export function seedIngredientRows(): Prisma.IngredientCreateManyInput[] {
     name: s.name,
     nameKey: nameKey(s.name),
     category: s.category,
+    diet: guessDiet(s.name, s.category),
     imageUrl: s.image,
   }));
 }
@@ -34,11 +37,13 @@ export function seedIngredientRows(): Prisma.IngredientCreateManyInput[] {
 export async function searchIngredients({
   q,
   category,
+  diet,
   limit,
   offset = 0,
 }: {
   q: string;
   category?: string;
+  diet?: Diet;
   limit: number;
   offset?: number;
 }): Promise<{ items: IngredientDto[]; total: number }> {
@@ -46,6 +51,7 @@ export async function searchIngredients({
   const where: Prisma.IngredientWhereInput = {
     ...(key ? { nameKey: { contains: key } } : {}),
     ...(category ? { category } : {}),
+    ...(diet ? { diet } : {}),
   };
 
   if (!key) {

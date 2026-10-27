@@ -3,6 +3,7 @@ import "server-only";
 import type { Prisma, Recipe } from "@prisma/client";
 
 import { prisma } from "./db";
+import { type Diet, type RecipeDiet, computeDiets } from "./diet";
 import { ApiError } from "./http";
 import { releaseImage } from "./images";
 import { toIngredientDto } from "./ingredients";
@@ -14,7 +15,43 @@ import type { RecipeDetailDto, RecipeSummaryDto } from "./types";
 /** How many levels of base recipes are opened up inside a recipe (pizza → sauce → stock). */
 const LINK_DEPTH = 3;
 
-export function toRecipeSummary(r: Recipe): RecipeSummaryDto {
+/**
+ * Veg / non-veg for every recipe, worked out from the ingredients (see diet.ts). Reads every
+ * recipe's ingredient list in one query rather than storing the answer: a personal recipe book
+ * is small, and this way changing an ingredient or a base recipe can never leave a recipe
+ * showing the wrong mark.
+ */
+export async function loadDiets(): Promise<Map<string, RecipeDiet>> {
+  const rows = await prisma.recipe.findMany({
+    select: {
+      id: true,
+      sections: {
+        orderBy: { position: "asc" },
+        select: {
+          title: true,
+          linkedRecipeId: true,
+          items: { orderBy: { position: "asc" }, select: { ingredient: { select: { name: true, diet: true } } } },
+        },
+      },
+    },
+  });
+  return computeDiets(
+    new Map(
+      rows.map((r) => [
+        r.id,
+        {
+          sections: r.sections.map((s) => ({
+            title: s.title,
+            linkedRecipeId: s.linkedRecipeId,
+            items: s.items.map((i) => i.ingredient),
+          })),
+        },
+      ]),
+    ),
+  );
+}
+
+export function toRecipeSummary(r: Recipe, diet: Diet | null): RecipeSummaryDto {
   return {
     id: r.id,
     name: r.name,
@@ -26,6 +63,7 @@ export function toRecipeSummary(r: Recipe): RecipeSummaryDto {
     prepMinutes: r.prepMinutes,
     cookMinutes: r.cookMinutes,
     isComponent: r.isComponent,
+    diet,
     updatedAt: r.updatedAt.toISOString(),
   };
 }
@@ -34,10 +72,12 @@ export async function listRecipes({
   q,
   category,
   components,
+  diet,
 }: {
   q: string;
   category?: string;
   components?: "only" | "exclude";
+  diet?: Diet;
 }): Promise<RecipeSummaryDto[]> {
   const key = nameKey(q);
   const where: Prisma.RecipeWhereInput = {
@@ -54,8 +94,13 @@ export async function listRecipes({
         }
       : {}),
   };
-  const rows = await prisma.recipe.findMany({ where, orderBy: { updatedAt: "desc" }, take: 500 });
-  return rows.map(toRecipeSummary);
+  const [rows, diets] = await Promise.all([
+    prisma.recipe.findMany({ where, orderBy: { updatedAt: "desc" }, take: 500 }),
+    loadDiets(),
+  ]);
+  return rows
+    .map((r) => toRecipeSummary(r, diets.get(r.id)?.diet ?? null))
+    .filter((r) => !diet || r.diet === diet);
 }
 
 const sectionInclude = {
@@ -66,7 +111,11 @@ const sectionInclude = {
 } satisfies Prisma.Recipe$sectionsArgs;
 
 /** One recipe, with its sections, and any base recipes it uses opened up inside them. */
-export async function loadRecipe(id: string, depth = 0): Promise<RecipeDetailDto | null> {
+export async function loadRecipe(
+  id: string,
+  depth = 0,
+  diets?: Map<string, RecipeDiet>,
+): Promise<RecipeDetailDto | null> {
   const recipe = await prisma.recipe.findUnique({
     where: { id },
     include: {
@@ -76,10 +125,12 @@ export async function loadRecipe(id: string, depth = 0): Promise<RecipeDetailDto
   });
   if (!recipe) return null;
 
+  diets ??= await loadDiets();
   const usedIn = new Map(recipe.usedIn.map((s) => [s.recipe.id, s.recipe]));
 
   return {
-    ...toRecipeSummary(recipe),
+    ...toRecipeSummary(recipe, diets.get(id)?.diet ?? null),
+    nonVegReasons: diets.get(id)?.reasons ?? [],
     notes: recipe.notes,
     createdAt: recipe.createdAt.toISOString(),
     usedIn: [...usedIn.values()],
@@ -90,7 +141,7 @@ export async function loadRecipe(id: string, depth = 0): Promise<RecipeDetailDto
         instructions: s.instructions,
         linkedRecipeId: s.linkedRecipeId,
         linkedRecipe:
-          s.linkedRecipeId && depth < LINK_DEPTH ? await loadRecipe(s.linkedRecipeId, depth + 1) : null,
+          s.linkedRecipeId && depth < LINK_DEPTH ? await loadRecipe(s.linkedRecipeId, depth + 1, diets) : null,
         items: s.items.map((it) => ({
           id: it.id,
           quantity: it.quantity,

@@ -6,6 +6,10 @@ A private recipe book that works on phone, tablet and computer, and installs lik
   part has its own ingredients and numbered steps.
 - **Base recipes.** Save a sauce or dough once ("This is a base recipe"), then use it as a part
   of any number of dishes. Editing it updates every dish that uses it.
+- **Veg / non-veg.** Every ingredient is marked Veg or Non-veg (Indian green-dot / brown-triangle
+  marks; eggs count as non-veg). Recipes are never marked by hand: they are worked out from their
+  ingredients and any base recipes they use, with the reason shown ("Chicken in Toppings").
+  Filters on the recipe list and the library.
 - **Variants.** "Make a variant" copies a recipe so you can change it into a new one.
 - **Ingredient library.** About 1,050 ingredients, most with photos, in 16 categories.
   Ingredients are picked by search ("tom" → Tomato). Anything missing can be added on the spot,
@@ -47,6 +51,11 @@ No Postgres on this machine? Copy `prisma/schema.prisma` to `prisma/dev-sqlite/`
 `provider = "sqlite"` (and no `directUrl`), run `prisma db push` + `prisma generate` against
 that copy with `DATABASE_URL="file:./dev.db"`, and run `npx prisma generate` again
 afterwards so the Postgres client is back before building.
+
+### Upgrading an existing database
+
+A library created before Veg / Non-veg existed needs one run after `prisma db push`:
+`npx tsx scripts/backfill-diet.ts`. A fresh setup does not.
 
 ## Tests
 

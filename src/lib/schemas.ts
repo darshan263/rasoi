@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isIngredientCategory } from "./categories";
+import { isDiet } from "./diet";
 import { isAcceptableImageUrl } from "./image-format";
 import { cleanName } from "./text";
 
@@ -44,6 +45,8 @@ export const ingredientInput = z.object({
     .string()
     .default("other")
     .refine(isIngredientCategory, "Pick a category from the list"),
+  /** Left out, the server guesses from the name and category. */
+  diet: z.string().refine(isDiet, "Pick Veg or Non-veg").optional(),
   imageUrl,
   defaultUnit: optionalText(20, "The unit"),
 });

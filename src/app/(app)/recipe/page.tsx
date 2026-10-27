@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
+import { DietMark } from "@/components/DietMark";
 import { IconChevronLeft, IconCopy, IconEdit, IconLink, IconPrinter, IconTrash } from "@/components/Icons";
 import { formatMinutes } from "@/components/RecipeMeta";
 import { Thumb } from "@/components/Thumb";
@@ -21,6 +22,11 @@ function ItemList({ section }: { section: SectionDto }) {
         <li key={it.id} className="flex items-center gap-3">
           <Thumb src={it.ingredient.imageUrl} alt="" size={40} fallback={categoryEmoji(it.ingredient.category)} fit="contain" />
           <span className="min-w-0 flex-1">
+            {it.ingredient.diet === "nonveg" && (
+              <span className="mr-1.5 inline-block align-[-1px]">
+                <DietMark diet="nonveg" size={12} />
+              </span>
+            )}
             <span className="font-medium">{it.ingredient.name}</span>
             {it.note && (
               <span className="text-sm" style={{ color: "var(--text-muted)" }}>
@@ -70,7 +76,10 @@ function SectionView({ section, nested = false }: { section: SectionDto; nested?
                 <IconLink size={13} />
                 Base recipe
               </span>
-              <span className="link block truncate">{linked?.name ?? "Open the base recipe"}</span>
+              <span className="flex items-center gap-1.5">
+                {linked?.diet && <DietMark diet={linked.diet} size={12} />}
+                <span className="link truncate">{linked?.name ?? "Open the base recipe"}</span>
+              </span>
             </span>
           </Link>
           {linked?.sections.map((s) => <SectionView key={s.id} section={s} nested />)}
@@ -140,7 +149,8 @@ function RecipeView() {
       )}
 
       <header className="flex flex-col gap-2">
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {recipe.diet && <DietMark diet={recipe.diet} size={16} label />}
           {recipe.isComponent && (
             <span className="chip" style={{ background: "var(--warm-soft)", color: "var(--warm)" }}>
               Base recipe
@@ -153,6 +163,17 @@ function RecipeView() {
         {recipe.description && (
           <p className="leading-relaxed" style={{ color: "var(--text-muted)" }}>
             {recipe.description}
+          </p>
+        )}
+        {recipe.nonVegReasons.length > 0 && (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            <span style={{ color: "var(--nonveg)", fontWeight: 600 }}>Non-veg</span> because of{" "}
+            {recipe.nonVegReasons.map((r, i) => (
+              <span key={r.ingredient}>
+                {i > 0 && ", "}
+                <strong style={{ color: "var(--text)" }}>{r.ingredient}</strong> ({r.part})
+              </span>
+            ))}
           </p>
         )}
       </header>

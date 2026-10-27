@@ -4,7 +4,9 @@ import { useState } from "react";
 
 import { api, errorMessage } from "@/lib/api-client";
 import { INGREDIENT_CATEGORIES, UNITS, categoryEmoji } from "@/lib/categories";
+import { DIETS, DIET_LABELS, type Diet, guessDiet } from "@/lib/diet";
 import type { IngredientDto } from "@/lib/types";
+import { DietMark } from "./DietMark";
 import { ImagePicker } from "./ImagePicker";
 
 /** Add an ingredient to the library, or edit one. Used by the library page and the recipe editor. */
@@ -23,6 +25,10 @@ export function IngredientForm({
   const [category, setCategory] = useState(initial?.category ?? "vegetables");
   const [defaultUnit, setDefaultUnit] = useState(initial?.defaultUnit ?? "");
   const [imageUrl, setImageUrl] = useState<string | null>(initial?.imageUrl ?? null);
+  // A new ingredient follows the guess from its name and category until Veg or Non-veg is
+  // tapped; an existing one keeps what it has.
+  const [chosenDiet, setChosenDiet] = useState<Diet | null>(initial?.diet ?? null);
+  const diet = chosenDiet ?? guessDiet(name, category);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +37,7 @@ export function IngredientForm({
     setSaving(true);
     setError(null);
     try {
-      const body = { name, category, defaultUnit, imageUrl };
+      const body = { name, category, diet, defaultUnit, imageUrl };
       const saved = initial
         ? await api<IngredientDto>(`/api/ingredients/${initial.id}`, { method: "PATCH", body })
         : await api<IngredientDto>("/api/ingredients", { method: "POST", body });
@@ -94,6 +100,31 @@ export function IngredientForm({
             ))}
           </datalist>
         </div>
+      </div>
+
+      <div>
+        <span className="label">Veg or non-veg</span>
+        <div className="seg" role="radiogroup" aria-label="Veg or non-veg">
+          {DIETS.map((d) => (
+            <button
+              key={d}
+              type="button"
+              role="radio"
+              aria-checked={diet === d}
+              className="seg-item inline-flex items-center gap-1.5"
+              data-active={diet === d}
+              onClick={() => setChosenDiet(d)}
+            >
+              <DietMark diet={d} />
+              {DIET_LABELS[d]}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs" style={{ color: "var(--text-faint)" }}>
+          {chosenDiet === null
+            ? "Guessed from the name and category. Tap to change."
+            : "Recipes using it are marked veg or non-veg from this. Eggs count as non-veg."}
+        </p>
       </div>
 
       {error && (

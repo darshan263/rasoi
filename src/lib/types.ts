@@ -1,9 +1,12 @@
 /** Shapes the JSON API returns. Imported by both the route handlers and the UI. */
 
+import type { Diet, NonVegReason } from "./diet";
+
 export interface IngredientDto {
   id: string;
   name: string;
   category: string;
+  diet: Diet;
   imageUrl: string | null;
   defaultUnit: string | null;
 }
@@ -23,6 +26,8 @@ export interface RecipeSummaryDto {
   prepMinutes: number | null;
   cookMinutes: number | null;
   isComponent: boolean;
+  /** Worked out from the ingredients; null while the recipe has none. */
+  diet: Diet | null;
   updatedAt: string;
 }
 
@@ -48,6 +53,8 @@ export interface RecipeDetailDto extends RecipeSummaryDto {
   notes: string | null;
   createdAt: string;
   sections: SectionDto[];
+  /** What makes it non-veg, if it is. */
+  nonVegReasons: NonVegReason[];
   /** Recipes that use this one as a section. */
   usedIn: { id: string; name: string }[];
 }
